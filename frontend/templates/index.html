@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Nutrition Scanner | Smart Meal Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Small fix for google translate widget appearance */
+        .goog-te-banner-frame.skiptranslate {
+            display: none !important;
+        }
+
+        body {
+            top: 0px !important;
+        }
+
+        #google_translate_element {
+            margin-right: 1rem;
+        }
+
+        .goog-te-gadget {
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h1>AI Nutrition Scanner</h1>
+                <p class="subtitle">AI-powered meal recognition & portion estimation</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;"><i class="fas fa-user"></i> {{
+                    current_user.email }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-secondary"
+                    style="padding: 0.5rem 1rem; font-size: 0.85rem; text-decoration: none;">Logout</a>
+            </div>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <section class="glass-card" style="padding: 2rem; margin-bottom: 2rem;">
+                <div style="display: flex; gap: 2rem; align-items: stretch; flex-wrap: wrap;">
+                    <div id="upload-stage" class="upload-section"
+                        onclick="document.getElementById('file-input').click()"
+                        style="flex: 1; min-width: 300px; margin-bottom: 0;">
+                        <div id="upload-placeholder" style="text-align: center;">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <h3>Upload Meal Photo</h3>
+                            <p>Click to browse or drag and drop</p>
+                        </div>
+                        <img id="pre-upload-preview" src="" alt="Selected Image"
+                            style="display: none; max-width: 100%; border-radius: 12px; max-height: 200px; object-fit: contain;">
+                        <input type="file" id="file-input" hidden accept="image/*" onchange="handleFileUpload(event)">
+                    </div>
+
+                    <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column;">
+                        <h3 style="margin-bottom: 0.5rem;">Meal Description</h3>
+                        <textarea id="image-description" placeholder="e.g. Chicken curry with 2 rotis and rice..."
+                            style="flex: 1; padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; outline: none; resize: none; font-family: inherit; font-size: 0.95rem; margin-bottom: 0.5rem;"></textarea>
+
+                        <div class="audio-controls"
+                            style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem;">
+                            <button id="start-recording" onclick="startVoiceRecognition()" class="action-btn"
+                                style="background: var(--primary); border: none; padding: 0.5rem 1rem;">
+                                <i class="fas fa-microphone"></i> Start Recording
+                            </button>
+                            <button id="stop-recording" onclick="stopVoiceRecognition()" class="action-btn"
+                                style="background: #ef4444; border: none; display: none; padding: 0.5rem 1rem;">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                            <div id="mic-visualizer-container" style="display: none; align-items: center; gap: 0.5rem;">
+                                <div class="mic-visualizer"
+                                    style="display: flex; gap: 3px; height: 18px; align-items: center;">
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                    <div class="bar"></div>
+                                </div>
+                                <span id="recording-status"
+                                    style="font-size: 0.8rem; color: var(--accent-orange); font-weight: 600;"></span>
+                            </div>
+                        </div>
+                        <p id="mic-tip"
+                            style="font-size: 0.75rem; color: var(--text-muted); margin-top: -0.8rem; margin-bottom: 1rem; display: none;">
+                            <i class="fas fa-info-circle"></i> Speak closer to the mic if your voice is low.
+                        </p>
+
+                        <button id="calculate-btn" onclick="calculateMeal()"
+                            style="width: 100%; padding: 1rem; background: var(--primary); border-radius: 12px; color: white; font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 0.8rem;">
+                            <i class="fas fa-calculator"></i> Analyse Nutrition
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+
+            <div id="loading-state" class="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 1rem;">Analyzing your meal with Gemini AI... 🍱</p>
+            </div>
+
+            <!-- Custom Notification Modal -->
+            <div id="custom-notification-overlay" class="notification-overlay" style="display: none;">
+                <div class="notification-modal">
+                    <div class="notification-icon" id="notification-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <h3 id="notification-title">Notification</h3>
+                    <p id="notification-message">Message goes here</p>
+                    <button class="notification-btn" onclick="closeNotification()">
+                        <i class="fas fa-check"></i> Got it
+                    </button>
+                </div>
+            </div>
+
+            <!-- Result Section -->
+            <div id="result-stage" style="display: none;">
+                <div class="main-grid">
+                    <!-- Left Column: Photo and Items -->
+                    <div class="glass-card">
+                        <h3>Meal Analysis</h3>
+                        <img id="image-preview" src="" alt="Meal preview">
+
+                        <div id="items-editor" style="margin-top: 2rem;">
+                            <h4>Detected Items</h4>
+                            <div id="items-list">
+                                <!-- Items will be injected here -->
+                            </div>
+                            <button onclick="recalculate()" style="margin-top: 1.5rem; width: 100%;">Re-analyse
+                                Nutrition</button>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Nutrition Cards -->
+                    <div>
+                        <div class="glass-card">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                                <h3 style="margin: 0;">Total Nutrition Estimate</h3>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="action-btn" onclick="speakResults()" title="Read Aloud">
+                                        <i class="fas fa-volume-up"></i> Listen
+                                    </button>
+                                    <button class="action-btn" onclick="downloadReport()" title="Download PDF">
+                                        <i class="fas fa-file-pdf"></i> Download PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="nutrition-grid">
+                                <div class="nutrient-card calories-card">
+                                    <h3>Calories (Range)</h3>
+                                    <p id="total-calories-range">0 kcal</p>
+                                    <small id="total-calories-exact" style="color: var(--text-muted);">Approx: 0
+                                        kcal</small>
+                                </div>
+                                <div class="nutrient-card">
+                                    <h3>Carbohydrates</h3>
+                                    <p id="total-carbs">0g</p>
+                                </div>
+                                <div class="nutrient-card">
+                                    <h3>Protein</h3>
+                                    <p id="total-protein">0g</p>
+                                </div>
+                                <div class="nutrient-card">
+                                    <h3>Fats</h3>
+                                    <p id="total-fat">0g</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card suggestion-box" id="suggestion-card">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h3 style="margin: 0;"><i class="fas fa-magic"></i> Smart Suggestion</h3>
+                                <button class="action-btn" onclick="speakSuggestion()" title="Read Aloud">
+                                    <i class="fas fa-volume-up"></i> Listen
+                                </button>
+                            </div>
+                            <div id="suggestion-text-container">
+                                <div id="suggestion-grid" class="suggestion-grid">
+                                    <!-- Suggestion cards will be injected here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button class="btn-secondary" onclick="resetUI()">Scan Another Meal</button>
+                </div>
+            </div>
+
+            <!-- Daily Summary Dashboard -->
+            <section id="daily-summary-dashboard" class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h3>Daily Summary Dashboard</h3>
+                    <div id="today-date" style="color: var(--text-muted); font-weight: 600;"></div>
+                </div>
+
+                <div class="nutrition-grid" style="margin-bottom: 3rem;">
+                    <div class="nutrient-card" style="background: rgba(79, 70, 229, 0.1);">
+                        <h3>Daily Calories</h3>
+                        <p id="daily-calories">0</p>
+                    </div>
+                    <div class="nutrient-card">
+                        <h3>Daily Protein</h3>
+                        <p id="daily-protein">0g</p>
+                    </div>
+                    <div class="nutrient-card">
+                        <h3>Daily Carbs</h3>
+                        <p id="daily-carbs">0g</p>
+                    </div>
+                    <div class="nutrient-card">
+                        <h3>Daily Fats</h3>
+                        <p id="daily-fats">0g</p>
+                    </div>
+                </div>
+
+                <h3>Meal History</h3>
+                <div class="history-table-container" style="margin-top: 1.5rem; overflow-x: auto;">
+                    <table id="meal-history-table">
+                        <thead>
+                            <tr>
+                                <th>Food / Meal Predicted</th>
+                                <th>Date & Time</th>
+                                <th>Total Calories</th>
+                            </tr>
+                        </thead>
+                        <tbody id="meal-history-body">
+                            <!-- History will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer style="text-align: center; margin-top: 4rem; color: var(--text-muted); font-size: 0.9rem;">
+            <p>Disclaimer: Nutrition values are estimates. Accuracy depends on photo quality and database data.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript"
+        src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+
+</html>
